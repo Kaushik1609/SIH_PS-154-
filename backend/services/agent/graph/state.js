@@ -14,6 +14,9 @@ export const agentState = Annotation.Root({
   detail: Annotation(),          // e.g. "brief", "standard", "detailed"
   objective: Annotation(),       // free-text objective from user
 
+  // Conversation memory (populated by agent.controller.js from prior messages)
+  conversationHistory: Annotation(), // [{ role: "user"|"assistant", content: string }]
+
   // Grounding (populated once by ingest.agent.js)
   evidenceContext: Annotation(),  // joined text for prompting
   sourceChunks: Annotation(),     // structured array with anchors for citation resolution

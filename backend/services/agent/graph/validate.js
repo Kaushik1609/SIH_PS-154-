@@ -1,4 +1,5 @@
 import { getModel } from "../config/llmModels.js"
+import { invokeLLMWithRetry } from "../utils/llmRetry.js"
 
 /**
  * Validation Layer
@@ -56,8 +57,9 @@ export const validateOutput = async (outputType, data, state) => {
     }
   }
 
-  // 3. Safety Check (PII detection — flag, do not strip)
-  const textBlob = JSON.stringify(data)
+  // 3. Safety Check (PII detection on content fields, ignoring internal chunk IDs)
+  const { citations: _, ...contentOnly } = (typeof data === "object" && data !== null) ? data : { data }
+  const textBlob = JSON.stringify(contentOnly).replace(/src-\d+/g, "")
   const emailMatches = textBlob.match(PII_EMAIL_REGEX)
   const phoneMatches = textBlob.match(PII_PHONE_REGEX)
 
@@ -91,7 +93,7 @@ Answer in format:
 SUPPORTED: YES or NO
 REASON: <concise 1-2 sentence reason>`
 
-    const res = await llm.invoke(groundingPrompt)
+    const res = await invokeLLMWithRetry(llm, groundingPrompt)
     const resText = res.content || ""
     if (resText.toUpperCase().includes("SUPPORTED: NO")) {
       grounding = false

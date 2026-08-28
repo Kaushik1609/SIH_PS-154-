@@ -20,6 +20,7 @@ import {
 import { FaLinkedin, FaXTwitter } from 'react-icons/fa6'
 import { useDispatch, useSelector } from 'react-redux'
 import sendMessage from '../features/sendMessage'
+import saveMessage from '../features/saveMessage'
 import { addMessage, setIsLoading } from '../redux/messageSlice'
 import { createConversation } from '../features/createConversation'
 import { addConversation, setConvTitle, setSelectedConversation } from '../redux/conversationSlice'
@@ -181,11 +182,21 @@ export default function ChatInput() {
     }
 
     // Add user message to thread
-    dispatch(addMessage({
+    const userMsg = {
       role: "user",
       content: promptText,
       images: selectedFile && selectedFile.type.startsWith("image/") ? [URL.createObjectURL(selectedFile)] : []
-    }))
+    }
+    dispatch(addMessage(userMsg))
+
+    // Persist user message to MongoDB
+    saveMessage({
+      conversationId: conversation?._id,
+      role: "user",
+      content: promptText,
+      images: [],
+      artifacts: []
+    })
 
     // Reset input state
     setValue("")
@@ -196,13 +207,23 @@ export default function ChatInput() {
     const response = await sendMessage(formData)
     dispatch(setIsLoading(false))
 
+    const assistantContent = response?.answer || "Generation completed."
+
     // Add assistant response to thread with results map
     dispatch(addMessage({
       role: "assistant",
-      content: response?.answer || "Generation completed.",
+      content: assistantContent,
       results: response?.results || null,
       sourceChunks: response?.sourceChunks || []
     }))
+
+    // Persist assistant message to MongoDB
+    saveMessage({
+      conversationId: conversation?._id,
+      role: "assistant",
+      content: assistantContent,
+      artifacts: response?.results ? [{ type: "results", data: response.results }] : []
+    })
   }
 
   const isGenerationMode = selectedFile || selectedOutputs.length > 0

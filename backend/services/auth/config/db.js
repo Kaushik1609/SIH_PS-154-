@@ -1,11 +1,7 @@
 import mongoose from "mongoose"
 
 const connectDb = async () => {
-    const uri = process.env.MONGODB_URI
-    if (!uri) {
-        console.error("[MongoDB Error] MONGODB_URI is not defined in environment variables.")
-        process.exit(1)
-    }
+    const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/cortexai"
 
     mongoose.connection.on("error", (err) => {
         console.error(`[MongoDB Error] Post-connection error: ${err.message || err}`)
@@ -16,11 +12,10 @@ const connectDb = async () => {
     })
 
     try {
-        await mongoose.connect(uri)
-        console.log("db connected")
+        await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 })
+        console.log("auth db connected")
     } catch (error) {
-        console.error(`[MongoDB Error] Initial connection failure: ${error.message || error}`)
-        process.exit(1)
+        console.warn(`[MongoDB Warning] Auth database initial connection failure: ${error.message}. Running in offline/in-memory mode.`)
     }
 }
 

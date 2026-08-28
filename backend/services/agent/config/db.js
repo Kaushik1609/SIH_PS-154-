@@ -16,8 +16,8 @@ const connectDb = async () => {
     })
 
     try {
-        await mongoose.connect(uri)
-        console.log("Database connected successfully")
+        await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 })
+        console.log("agent db connected successfully")
     } catch (error) {
         console.warn(`[MongoDB Warning] Initial connection failure: ${error.message}. Running without persistent DB caching.`)
     }

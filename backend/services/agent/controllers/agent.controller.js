@@ -1,6 +1,49 @@
 import { graph } from "../graph/graph.js"
 import Job from "../models/job.model.js"
 
+/**
+ * Fetch recent conversation messages from the chat service for context.
+ * Returns an array of { role, content } objects (last 10 messages).
+ */
+async function fetchConversationHistory(conversationId) {
+    if (!conversationId || conversationId.startsWith("incident-")) return []
+    try {
+        const chatServiceUrl = process.env.CHAT_SERVICE || "http://localhost:8002"
+        const res = await fetch(`${chatServiceUrl}/get-messages/${conversationId}`)
+        if (!res.ok) return []
+        const messages = await res.json()
+        if (!Array.isArray(messages)) return []
+        // Take the last 10 messages for context window
+        return messages.slice(-10).map(m => ({
+            role: m.role || "user",
+            content: (m.content || "").slice(0, 500) // truncate long messages to save tokens
+        }))
+    } catch (err) {
+        console.log("Conversation history fetch (non-fatal):", err.message)
+        return []
+    }
+}
+
+/**
+ * Invoke graph with retry on 429 rate limit errors.
+ */
+async function invokeWithRetry(stateInput, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await graph.invoke(stateInput)
+        } catch (err) {
+            const is429 = err?.message?.includes("429") || err?.message?.includes("rate_limit")
+            if (is429 && attempt < maxRetries - 1) {
+                const waitMs = Math.min(3000 * Math.pow(2, attempt), 15000)
+                console.log(`[Agent] Rate limited (attempt ${attempt + 1}/${maxRetries}). Retrying in ${waitMs}ms...`)
+                await new Promise(r => setTimeout(r, waitMs))
+                continue
+            }
+            throw err
+        }
+    }
+}
+
 export const agent = async (req, res, next) => {
     try {
         let {
@@ -50,6 +93,9 @@ export const agent = async (req, res, next) => {
             outputTypes = ["executiveSummary"]
         }
 
+        // Fetch conversation history for context continuity
+        const conversationHistory = await fetchConversationHistory(conversationId)
+
         // Invoke LangGraph workflow: ingest -> orchestrator
         const stateInput = {
             prompt: prompt || objective || "Generate communication outputs from source document",
@@ -62,12 +108,13 @@ export const agent = async (req, res, next) => {
             language: language || "English",
             detail: detail || "standard",
             objective: objective || prompt || "Generate communications",
+            conversationHistory,
             evidenceContext: "",
             sourceChunks: [],
             results: {}
         }
 
-        const finalState = await graph.invoke(stateInput)
+        const finalState = await invokeWithRetry(stateInput)
 
         // Structure clean results map for client
         const formattedResults = {}
