@@ -1,0 +1,54 @@
+# ==========================================
+# Environment Variables & API Secrets
+# ==========================================
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+package-lock.json.bak
+
+# ==========================================
+# Temporary Files & Document Uploads/Generated Artifacts
+# ==========================================
+temp/
+tmp/
+uploads/
+*.pdf
+*.pptx
+*.docx
+*.bin
+
+# ==========================================
+# Logs & Process Outputs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ==========================================
+# Credentials & Cloud Keys
+# ==========================================
+serviceAccountKey.json
+firebase-adminsdk*.json
+*.pem
+*.key
+*.cert
+credentials.json
+
+# ==========================================
+# IDE & System Files
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
