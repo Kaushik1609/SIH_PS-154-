@@ -40,6 +40,15 @@ export const presentationAgent = async (state, docType) => {
     await checkAgentLimit(state.userId, "presentation")
     const llm = await getModel("presentation")
 
+    // ── Evidence guard: fail early if no evidence is available ──────────────
+    if (!state.evidenceContext || state.evidenceContext.trim().length < 50) {
+      console.error(`[Presentation] No evidence context available (${state.evidenceContext?.length || 0} chars). Cannot generate grounded presentation.`)
+      return {
+        status: "failed",
+        error: "No source evidence available. Document ingestion may have failed — please re-upload your document."
+      }
+    }
+
     if (docType === "presentation") {
       const prompt = `You are a professional presentation designer for disaster/crisis communications.
 

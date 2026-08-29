@@ -7,6 +7,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
 const groq = new ChatGroq({
     model: "openai/gpt-oss-120b",
     temperature: 0.7,
+    maxTokens: 4096,
     apiKey: process.env.GROQ_API_KEY
 })
 
@@ -14,6 +15,7 @@ const groq = new ChatGroq({
 const gemini = new ChatGoogleGenerativeAI({
     model: "gemini-3.6-flash",
     temperature: 0.7,
+    maxOutputTokens: 4096,
     apiKey: process.env.GOOGLE_API_KEY
 })
 
@@ -35,3 +37,4 @@ export const getModel = async (agent) => {
             return groq;
     }
 }
+
