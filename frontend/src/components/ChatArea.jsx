@@ -24,7 +24,13 @@ function ChatArea() {
   }, [selectedConversation?._id])
 
   return (
-    <div className='flex-1 flex flex-col min-w-0 bg-[#0c0e14]'>
+    <div
+      className='flex-1 flex flex-col min-w-0 h-screen overflow-hidden'
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        color: 'var(--text-primary)'
+      }}
+    >
       <Nav />
       <MessageList />
       <ChatInput />

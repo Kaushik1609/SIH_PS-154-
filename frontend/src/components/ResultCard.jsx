@@ -15,29 +15,27 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
-  ShieldAlert,
-  ExternalLink
+  ShieldAlert
 } from 'lucide-react'
 import { FaLinkedin, FaXTwitter } from 'react-icons/fa6'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const TYPE_CONFIG = {
-  advisory: { label: "Advisory", icon: FileText, color: "text-red-400 border-red-500/20 bg-red-500/10" },
-  executivesummary: { label: "Executive Summary", icon: FileText, color: "text-blue-400 border-blue-500/20 bg-blue-500/10" },
-  videoscript: { label: "Video Script", icon: Video, color: "text-purple-400 border-purple-500/20 bg-purple-500/10" },
-  presentation: { label: "Presentation (PPTX)", icon: Presentation, color: "text-amber-400 border-amber-500/20 bg-amber-500/10" },
-  infographic: { label: "Infographic Plan", icon: BarChart3, color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" },
-  linkedin: { label: "LinkedIn Post", icon: FaLinkedin, color: "text-sky-400 border-sky-500/20 bg-sky-500/10" },
-  twitter: { label: "X / Twitter Post", icon: FaXTwitter, color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/10" }
+  advisory: { label: "Advisory", icon: FileText },
+  executivesummary: { label: "Executive Summary", icon: FileText },
+  videoscript: { label: "Video Script", icon: Video },
+  presentation: { label: "Presentation (PPTX)", icon: Presentation },
+  infographic: { label: "Infographic Plan", icon: BarChart3 },
+  linkedin: { label: "LinkedIn Post", icon: FaLinkedin },
+  twitter: { label: "X / Twitter Post", icon: FaXTwitter }
 }
 
 export default function ResultCard({ type, data, onRegenerate }) {
   const normType = type?.toLowerCase()?.trim()
   const config = TYPE_CONFIG[normType] || {
     label: type,
-    icon: FileText,
-    color: "text-indigo-400 border-indigo-500/20 bg-indigo-500/10"
+    icon: FileText
   }
   const Icon = config.icon
 
@@ -55,7 +53,6 @@ export default function ResultCard({ type, data, onRegenerate }) {
   const citations = data?.citations || artifactData?.citations || []
   const validation = data?.validation
 
-  // Initial text preview representation
   const rawText = data?.answer || (typeof artifactData === "object" ? JSON.stringify(artifactData, null, 2) : String(data || ""))
   const displayText = editedText || rawText
 
@@ -76,79 +73,119 @@ export default function ResultCard({ type, data, onRegenerate }) {
   }
 
   return (
-    <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#11131a] overflow-hidden shadow-xl">
+    <div
+      className="flex flex-col rounded-sm boxy-curve border overflow-hidden shadow-sm transition-all"
+      style={{
+        backgroundColor: 'var(--card-bg)',
+        borderColor: 'var(--border-color)'
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded-lg border ${config.color}`}>
-            <Icon size={16} />
+      <div
+        className="flex items-center justify-between px-3 py-2 border-b"
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          borderColor: 'var(--border-color)'
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="p-1 rounded-sm boxy-curve border"
+            style={{
+              backgroundColor: 'var(--accent-subtle)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--accent-text)'
+            }}
+          >
+            <Icon size={13} />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-slate-100">{config.label}</h4>
-            <span className="text-[10px] text-slate-400 capitalize">
-              {status === "done" ? (approved ? "Approved" : "Ready for Review") : status}
+            <h4 className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{config.label}</h4>
+            <span className="text-[9.5px] capitalize block -mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {status === "done" ? (approved ? "Approved" : "Ready") : status}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {/* Validation Status Badge */}
           {validation && (
             <button
               onClick={() => setShowValidation(!showValidation)}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
-                validation.passed
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
-                  : "bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
-              }`}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm boxy-curve text-[10px] font-medium border cursor-pointer"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-color)',
+                color: validation.passed ? 'var(--text-secondary)' : '#d97706'
+              }}
             >
-              {validation.passed ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
-              {validation.passed ? "Validated" : "Issues Found"}
-              {showValidation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {validation.passed ? <ShieldCheck size={11} /> : <ShieldAlert size={11} />}
+              <span>{validation.passed ? "Checked" : "Issues"}</span>
+              {showValidation ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
             </button>
           )}
 
           {/* Status Indicator */}
           {status === "done" && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <CheckCircle2 size={12} /> Done
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm boxy-curve text-[10px] font-medium border"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--accent-text)'
+              }}
+            >
+              <CheckCircle2 size={10} /> Done
             </span>
           )}
           {isFailed && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-red-500/10 border border-red-500/20 text-red-400">
-              <AlertTriangle size={12} /> Failed
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm boxy-curve text-[10px] font-medium border"
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.2)',
+                color: '#ef4444'
+              }}
+            >
+              <AlertTriangle size={10} /> Failed
             </span>
           )}
         </div>
       </div>
 
-      {/* Validation Panel (Expandable) */}
+      {/* Validation Panel */}
       {showValidation && validation && (
-        <div className="px-4 py-2.5 bg-black/40 border-b border-white/[0.06] text-xs space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span>Validation Checks</span>
-            <span className={validation.passed ? "text-emerald-400 font-medium" : "text-amber-400 font-medium"}>
-              {validation.passed ? "All checks passed" : "Review warnings"}
+        <div
+          className="px-3 py-2 border-b text-[11px] space-y-1"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderColor: 'var(--border-color)'
+          }}
+        >
+          <div className="flex items-center justify-between text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span>Verification Checks</span>
+            <span style={{ color: validation.passed ? 'var(--accent-text)' : '#d97706' }}>
+              {validation.passed ? "All checks passed" : "Review notes"}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-            <div className="flex items-center gap-1 text-slate-300">
-              <span className={validation.completeness ? "text-emerald-400" : "text-red-400"}>●</span> Completeness
+          <div className="grid grid-cols-2 gap-1.5 pt-0.5 text-[10px]">
+            <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>●</span> Completeness: {validation.completeness ? "OK" : "Warn"}
             </div>
-            <div className="flex items-center gap-1 text-slate-300">
-              <span className={validation.platformConstraints ? "text-emerald-400" : "text-amber-400"}>●</span> Platform Rules
+            <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>●</span> Platform: {validation.platformConstraints ? "OK" : "Warn"}
             </div>
-            <div className="flex items-center gap-1 text-slate-300">
-              <span className={validation.safety ? "text-emerald-400" : "text-red-400"}>●</span> Safety / PII
+            <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>●</span> Safety: {validation.safety ? "OK" : "Warn"}
             </div>
-            <div className="flex items-center gap-1 text-slate-300">
-              <span className={validation.grounding ? "text-emerald-400" : "text-amber-400"}>●</span> Grounding Check
+            <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>●</span> Grounding: {validation.grounding ? "OK" : "Warn"}
             </div>
           </div>
           {validation.notes && validation.notes.length > 0 && (
-            <div className="pt-1.5 border-t border-white/[0.04] text-[11px] text-slate-400 space-y-1">
+            <div className="pt-1 border-t text-[10px] space-y-0.5" style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
               {validation.notes.map((n, i) => (
-                <p key={i} className="text-amber-300/80">• {n}</p>
+                <p key={i}>• {n}</p>
               ))}
             </div>
           )}
@@ -156,38 +193,67 @@ export default function ResultCard({ type, data, onRegenerate }) {
       )}
 
       {/* Content Area */}
-      <div className="p-4 flex-1 overflow-y-auto max-h-[360px] text-[13px] text-slate-200 leading-relaxed [scrollbar-width:thin]">
+      <div
+        className="p-3 flex-1 overflow-y-auto max-h-[250px] text-xs leading-relaxed [scrollbar-width:thin]"
+        style={{ color: 'var(--text-primary)' }}
+      >
         {isFailed ? (
-          <div className="text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs">
+          <div
+            className="rounded-sm boxy-curve p-2.5 text-xs border"
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              borderColor: 'rgba(239, 68, 68, 0.2)',
+              color: '#ef4444'
+            }}
+          >
             {data?.error || "Generation error encountered."}
           </div>
         ) : isEditing ? (
           <textarea
             value={displayText}
             onChange={(e) => setEditedText(e.target.value)}
-            rows={8}
-            className="w-full bg-black/40 border border-indigo-500/30 rounded-xl p-3 text-xs text-slate-200 outline-none focus:border-indigo-500 font-mono resize-y"
+            rows={6}
+            className="w-full rounded-sm boxy-curve p-2 text-xs outline-none font-mono resize-y border"
+            style={{
+              backgroundColor: 'var(--input-bg)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-primary)'
+            }}
           />
         ) : downloadUrl ? (
-          <div className="flex flex-col items-center justify-center py-6 gap-3 text-center bg-white/[0.02] rounded-xl border border-white/[0.04]">
-            <div className={`p-3 rounded-2xl border ${config.color}`}>
-              <Icon size={28} />
+          <div
+            className="flex flex-col items-center justify-center py-4 gap-2 text-center rounded-sm boxy-curve border"
+            style={{
+              backgroundColor: 'var(--bg-tertiary)',
+              borderColor: 'var(--border-color)'
+            }}
+          >
+            <div
+              className="p-2 rounded-sm boxy-curve border"
+              style={{
+                backgroundColor: 'var(--accent-subtle)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--accent-text)'
+              }}
+            >
+              <Icon size={20} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-100">{config.label} Ready</p>
-              <p className="text-xs text-slate-400 mt-0.5">Binary export generated and stored in cloud.</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{config.label} Export</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Document ready for download</p>
             </div>
             <a
               href={downloadUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-md shadow-indigo-600/20"
+              className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm boxy-curve text-xs font-medium transition cursor-pointer text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
             >
-              <Download size={14} /> Download Document
+              <Download size={12} /> Download
             </a>
           </div>
         ) : (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none text-xs" style={{ color: 'var(--text-primary)' }}>
             <Markdown remarkPlugins={[remarkGfm]}>{displayText}</Markdown>
           </div>
         )}
@@ -195,20 +261,32 @@ export default function ResultCard({ type, data, onRegenerate }) {
 
       {/* Citations Footer */}
       {citations && citations.length > 0 && (
-        <div className="px-4 py-2 border-t border-white/[0.04] bg-white/[0.01]">
+        <div
+          className="px-3 py-1.5 border-t text-[10px]"
+          style={{
+            backgroundColor: 'var(--bg-tertiary)',
+            borderColor: 'var(--border-color)'
+          }}
+        >
           <button
             onClick={() => setShowCitations(!showCitations)}
-            className="flex items-center justify-between w-full text-[11px] text-slate-400 hover:text-slate-200 transition"
+            className="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition"
+            style={{ color: 'var(--text-muted)' }}
           >
-            <span>Source Citations ({citations.length} anchors referenced)</span>
-            {showCitations ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <span>Citations ({citations.length})</span>
+            {showCitations ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
           {showCitations && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1 mt-1.5">
               {citations.map((c, i) => (
                 <span
                   key={i}
-                  className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono"
+                  className="px-1.5 py-0.5 rounded-sm boxy-curve border text-[9.5px] font-mono"
+                  style={{
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--accent-text)'
+                  }}
                 >
                   🔗 {typeof c === "string" ? c : c.chunkId || `Chunk ${i + 1}`}
                 </span>
@@ -219,54 +297,75 @@ export default function ResultCard({ type, data, onRegenerate }) {
       )}
 
       {/* Action Footer */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-t border-white/[0.06] bg-black/20">
+      <div
+        className="flex items-center justify-between px-2.5 py-1.5 border-t"
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          borderColor: 'var(--border-color)'
+        }}
+      >
         <div className="flex items-center gap-1">
           <button
             onClick={handleCopy}
             title="Copy content"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] transition"
+            className="p-1 rounded-sm boxy-curve border-none cursor-pointer"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            {copied ? <Check size={12} style={{ color: 'var(--accent-text)' }} /> : <Copy size={12} />}
           </button>
 
           {!downloadUrl && (
             <button
               onClick={() => setIsEditing(!isEditing)}
               title={isEditing ? "Save edits" : "Edit content"}
-              className={`p-1.5 rounded-lg transition ${
-                isEditing ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]"
-              }`}
+              className="p-1 rounded-sm boxy-curve border-none cursor-pointer"
+              style={{
+                backgroundColor: isEditing ? 'var(--accent)' : 'transparent',
+                color: isEditing ? '#ffffff' : 'var(--text-secondary)'
+              }}
             >
-              <Edit3 size={14} />
+              <Edit3 size={12} />
             </button>
           )}
 
           <button
             onClick={() => setApproved(!approved)}
-            title="Approve for publishing"
-            className={`p-1.5 rounded-lg transition ${
-              approved ? "bg-emerald-500/20 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]"
-            }`}
+            title="Mark reviewed"
+            className="p-1 rounded-sm boxy-curve border-none cursor-pointer"
+            style={{
+              backgroundColor: approved ? 'var(--accent-subtle)' : 'transparent',
+              color: approved ? 'var(--accent-text)' : 'var(--text-secondary)'
+            }}
           >
-            <ThumbsUp size={14} />
+            <ThumbsUp size={12} />
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {onRegenerate && (
             <button
               onClick={() => onRegenerate(normType)}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/[0.06] transition"
+              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-sm boxy-curve border cursor-pointer"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-secondary)'
+              }}
             >
-              <RefreshCw size={11} /> Regenerate
+              <RefreshCw size={10} /> Redo
             </button>
           )}
 
           <button
             onClick={handleExportJson}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-indigo-400 hover:text-indigo-300 rounded-lg hover:bg-indigo-500/10 transition"
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-sm boxy-curve border cursor-pointer"
+            style={{
+              backgroundColor: 'var(--accent-subtle)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--accent-text)'
+            }}
           >
-            <Download size={11} /> Export JSON
+            <Download size={10} /> JSON
           </button>
         </div>
       </div>

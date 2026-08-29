@@ -20,7 +20,6 @@ function Home() {
             dispatch(setUserdata(data))
         } catch (error) {
             console.log("Backend auth error, falling back to guest session:", error)
-            // If backend auth service is not running locally, create a local session
             dispatch(setUserdata({
                 _id: "user-demo",
                 name: "Response Operator",
@@ -38,7 +37,7 @@ function Home() {
             const token = await data.user.getIdToken()
             await handleLogin(token)
         } catch (err) {
-            console.log("Firebase login issue (API key not configured in .env):", err.message)
+            console.log("Firebase login issue:", err.message)
             setLoginError("Firebase OAuth key is not configured. Use 'Continue as Guest' below to test the platform.")
         }
     }
@@ -54,54 +53,91 @@ function Home() {
     }
 
     return (
-        <div className='h-screen flex bg-[#0c0e14] text-white overflow-hidden'>
+        <div
+            className='h-screen flex overflow-hidden'
+            style={{
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)'
+            }}
+        >
             <SideBar />
             <ChatArea />
 
             {!userData && (
-                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4'>
-                    <div className='w-full max-w-[380px] bg-[#12141d] border border-white/[0.09] rounded-3xl p-7 flex flex-col gap-5 shadow-2xl'>
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/25 text-indigo-400">
-                                <Shield size={26} />
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4'>
+                    <div
+                        className='w-full max-w-[340px] border rounded-sm boxy-curve p-5 flex flex-col gap-4 shadow-xl'
+                        style={{
+                            backgroundColor: 'var(--modal-bg)',
+                            borderColor: 'var(--border-color)'
+                        }}
+                    >
+                        <div className="flex items-center gap-2.5">
+                            <div
+                                className="p-2 rounded-sm boxy-curve border"
+                                style={{
+                                    backgroundColor: 'var(--accent-subtle)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--accent)'
+                                }}
+                            >
+                                <Shield size={20} />
                             </div>
                             <div>
-                                <h2 className='text-[18px] font-bold text-slate-100 tracking-tight'>CortexAI</h2>
-                                <p className='text-[12px] text-slate-400'>Crisis Communications Engine</p>
+                                <h2 className='text-sm font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>CortexAI</h2>
+                                <p className='text-[11px]' style={{ color: 'var(--text-muted)' }}>Crisis Communications Engine</p>
                             </div>
                         </div>
 
-                        <p className='text-[13px] text-slate-300 leading-relaxed'>
-                            Generate grounded advisories, summaries, presentations, and social communications in parallel from uploaded disaster reports.
+                        <p className='text-xs leading-relaxed' style={{ color: 'var(--text-secondary)' }}>
+                            Generate grounded advisories, summaries, presentations, and social communications from uploaded crisis reports.
                         </p>
 
                         {loginError && (
-                            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed">
+                            <div
+                                className="p-2 rounded-sm boxy-curve text-[11px] leading-relaxed border"
+                                style={{
+                                    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                                    borderColor: 'rgba(217, 119, 6, 0.25)',
+                                    color: '#d97706'
+                                }}
+                            >
                                 {loginError}
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-2.5">
+                        <div className="flex flex-col gap-2">
                             <button
-                                className='w-full flex items-center justify-center gap-2.5 py-3 rounded-xl text-xs font-semibold text-slate-900 bg-white hover:bg-slate-100 transition duration-150 cursor-pointer shadow-lg'
+                                className='w-full flex items-center justify-center gap-2 py-2 rounded-sm boxy-curve text-xs font-semibold border cursor-pointer transition'
+                                style={{
+                                    backgroundColor: 'var(--bg-secondary)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-primary)'
+                                }}
                                 onClick={googleLogin}
                             >
-                                <FcGoogle size={17} />
+                                <FcGoogle size={15} />
                                 Continue with Google
                             </button>
 
                             <button
-                                className='w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 transition duration-150 cursor-pointer shadow-lg shadow-indigo-600/20'
+                                className='w-full flex items-center justify-center gap-1.5 py-2 rounded-sm boxy-curve text-xs font-semibold text-white border-none cursor-pointer transition'
+                                style={{
+                                    backgroundColor: 'var(--accent)'
+                                }}
                                 onClick={guestLogin}
                             >
-                                <UserCheck size={16} />
-                                Continue as Guest / Demo Mode
+                                <UserCheck size={14} />
+                                Continue as Guest / Demo
                             </button>
                         </div>
 
-                        <div className="flex items-center gap-1.5 justify-center text-[11px] text-slate-500">
-                            <Sparkles size={12} className="text-indigo-400" />
-                            <span>Full multi-agent generator & preview access</span>
+                        <div
+                            className="flex items-center gap-1 justify-center text-[10px]"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            <Sparkles size={11} style={{ color: 'var(--accent)' }} />
+                            <span>Multi-format generator ready</span>
                         </div>
                     </div>
                 </div>

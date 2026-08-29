@@ -1,29 +1,72 @@
-import { FileSpreadsheet } from 'lucide-react'
 import React from 'react'
+import { FileSpreadsheet, Sun, Moon } from 'lucide-react'
 import { useSelector } from 'react-redux'
+import { useTheme } from '../context/ThemeContext'
 
 function Nav() {
   const { selectedConversation } = useSelector(state => state.conversation)
   const { messages } = useSelector(state => state.message)
+  const { isDark, toggleTheme } = useTheme()
 
   return (
-    <>
-      {selectedConversation && (
-        <div className='h-13 flex items-center justify-between px-5 border-b border-white/[0.06] bg-[#0c0e14] shrink-0'>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className='flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 shrink-0'>
-              <FileSpreadsheet size={13} className="text-indigo-400" />
+    <div className='h-11 flex items-center justify-between px-4 border-b shrink-0'
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        borderColor: 'var(--border-color)',
+        color: 'var(--text-primary)'
+      }}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {selectedConversation && (
+          <>
+            <div
+              className='flex items-center justify-center w-6 h-6 rounded-sm shrink-0 boxy-curve'
+              style={{
+                backgroundColor: 'var(--accent-subtle)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--accent-text)'
+              }}
+            >
+              <FileSpreadsheet size={13} />
             </div>
-            <div className='text-[13.5px] font-semibold text-slate-100 tracking-tight truncate'>
+            <div
+              className='text-xs font-semibold tracking-tight truncate'
+              style={{ color: 'var(--text-primary)' }}
+            >
               {selectedConversation?.title || "Situation Brief"}
             </div>
-          </div>
-          <div className='text-[10px] font-medium text-slate-500 bg-white/[0.03] border border-white/[0.06] px-2.5 py-0.5 rounded-full shrink-0'>
+          </>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        {selectedConversation && (
+          <div
+            className='text-[10px] font-medium px-2 py-0.5 rounded-sm shrink-0 boxy-curve border'
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-muted)'
+            }}
+          >
             {messages?.length} {messages?.length === 1 ? "entry" : "entries"}
           </div>
-        </div>
-      )}
-    </>
+        )}
+
+        <button
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          className='flex items-center justify-center w-7 h-7 rounded-sm boxy-curve border cursor-pointer'
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-color)',
+            color: 'var(--text-secondary)'
+          }}
+        >
+          {isDark ? <Sun size={13} /> : <Moon size={13} />}
+        </button>
+      </div>
+    </div>
   )
 }
 

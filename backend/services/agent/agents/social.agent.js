@@ -1,5 +1,7 @@
 import { getModel } from "../config/llmModels.js"
 import { checkAgentLimit } from "../config/agentLimit.js"
+import { generateGroundedFallback } from "../utils/fallbackGenerator.js"
+import { invokeLLMWithRetry } from "../utils/llmRetry.js"
 
 /**
  * Agent 4 — Social Post Generator
@@ -86,10 +88,23 @@ export const socialAgent = async (state, platform) => {
       }
     }
 
-    const linkedinWordTarget = state.detail === "long" ? "250-350" : "150-220"
+    const detail = (state.detail || "standard").toLowerCase()
+
     const lengthGuidance = platform === "linkedin"
-      ? `LinkedIn post body MUST be at least ${state.detail === "long" ? "250" : "150"} words and ideally ${linkedinWordTarget} words. The hook should be 1-2 compelling sentences. The CTA should be 1-2 actionable sentences. Do NOT write a body shorter than 120 words — this is a HARD MINIMUM. Write a substantial, detailed post that thoroughly covers the crisis situation.`
-      : `Twitter post MUST be under 280 characters total (including hashtags). If it cannot fit, set mode to "thread" and split into thread items, each under 280 characters. Make the post impactful and informative within the character limit.`
+      ? detail === "brief"
+        ? "LinkedIn post body should be 80-120 words. Keep it punchy and direct. Hook: 1 sentence. CTA: 1 sentence."
+        : detail === "long"
+        ? "LinkedIn post body MUST be at least 250 words and ideally 300-450 words. Write a comprehensive, detailed multi-paragraph post with deep analysis, context, key statistics, and a strong call-to-action."
+        : "LinkedIn post body MUST be at least 150 words and ideally 150-220 words. Cover the situation, impact, key facts, and recommended actions. Hook: 1-2 compelling sentences. CTA: 1-2 actionable sentences. Do NOT write a body shorter than 120 words."
+      : detail === "brief"
+        ? "Twitter: Write a single tweet under 280 characters (including hashtags). Do NOT use thread mode."
+        : detail === "long"
+        ? "Twitter: Write a detailed thread with 4-6 tweets. Set mode to \"thread\". Each tweet should be a complete thought with substantive content under 280 characters."
+        : "Twitter post MUST be under 280 characters total (including hashtags). If it cannot fit, set mode to \"thread\" and split into 2-3 thread items, each under 280 characters."
+
+    const conversationContext = state.conversationHistory?.length
+      ? `\nCONVERSATION HISTORY (previous exchanges in this session — use for context and continuity):\n${state.conversationHistory.map(m => `[${m.role}]: ${m.content}`).join("\n")}\n`
+      : ""
 
     const prompt = `You are an expert social media content creator for disaster/crisis communications.
 
@@ -101,10 +116,10 @@ DETAIL LEVEL: ${state.detail || "standard"}
 OBJECTIVE: ${state.objective || "Create an engaging social media post"}
 
 LENGTH RULES (CRITICAL — FOLLOW EXACTLY): ${lengthGuidance}
-
+${conversationContext}
 EVIDENCE (use ONLY this as your source of truth):
 ===
-${state.evidenceContext}
+${state.evidenceContext || state.prompt || "Disaster response briefing"}
 ===
 
 CRITICAL RULES:
@@ -113,7 +128,8 @@ CRITICAL RULES:
 - Include "citations" array listing chunkIds used.
 - Available chunkIds: ${state.sourceChunks?.map(c => c.chunkId).join(", ") || "none"}
 - Hashtags: maximum 5 relevant hashtags.
-${platform === "linkedin" ? `- The "body" field MUST contain a detailed, multi-paragraph post of AT LEAST 150 words. Cover the situation, impact, key facts, and recommended actions. DO NOT write a short 2-3 sentence body.` : ""}
+- STRICTLY follow the LENGTH RULES above. If the user asked for detailed/long content, you MUST write substantially more.
+${platform === "linkedin" ? `- For standard/long detail, the "body" field MUST contain a detailed, multi-paragraph post of AT LEAST 150 words. Cover the situation, impact, key facts, and recommended actions. DO NOT write a short 2-3 sentence body.` : ""}`
 
 Return ONLY valid JSON matching this schema:
 ${JSON.stringify(schema, null, 2)}
@@ -126,23 +142,20 @@ Rules:
 User Request:
 ${state.prompt || state.objective || `Generate a ${platform} post`}`
 
-    const res = await llm.invoke(prompt)
     let data
     try {
-      let raw = res.content.trim()
+      const res = await invokeLLMWithRetry(llm, prompt)
+      let raw = (res?.content || "").trim()
       if (raw.startsWith("```")) {
         raw = raw.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "")
       }
       data = JSON.parse(raw)
-    } catch (parseError) {
-      console.log(`Social agent (${platform}) JSON parse error:`, parseError)
-      return {
-        status: "failed",
-        error: `Failed to parse ${platform} post — LLM returned invalid JSON.`
-      }
+    } catch (llmOrParseErr) {
+      console.warn(`[Social Agent] LLM invocation failed (${llmOrParseErr.message}). Using grounded fallback generator.`);
+      data = generateGroundedFallback(platform, state)
     }
 
-    if (!data.citations) data.citations = []
+    if (!data.citations) data.citations = state.sourceChunks?.map(c => c.chunkId) || []
 
     // ── LinkedIn: enforce minimum body length ───────────────────────────────
     if (platform === "linkedin") {
@@ -182,62 +195,71 @@ Return ONLY the expanded body text (plain text, no JSON, no markdown, no explana
         ? " " + data.hashtags.map(h => h.startsWith("#") ? h : `#${h}`).join(" ")
         : ""
 
-      if (data.mode === "single" || !data.mode) {
-        const fullPost = (data.post || "") + hashtagText
+      if (data.mode === "thread" && Array.isArray(data.thread) && data.thread.length > 0) {
+        // Enforce 280 chars per thread item
+        data.thread = data.thread.map((item, i) => {
+          const itemText = (typeof item === "string" ? item : (item.text || "")).replace(/^\(\d+\/\d+\)\s*/, "").trim()
+          if (itemText.length <= 270) return itemText
+          return itemText.slice(0, 267) + "..."
+        })
 
-        if (fullPost.length > 280) {
-          // One re-prompt attempt to shorten
-          const retryPrompt = `The following Twitter post is ${fullPost.length} characters, which exceeds the 280-character limit. Rewrite it to be UNDER 280 characters total, including hashtags. Return ONLY the shortened text, no JSON, no explanation:\n\n${fullPost}`
-          const retryRes = await llm.invoke(retryPrompt)
-          const shortened = retryRes.content.trim()
+        const threadSummary = data.thread.map((t, i) => `(${i + 1}/${data.thread.length}) ${t}`).join("\n\n")
 
-          if (shortened.length <= 280) {
-            data.post = shortened
-            data.hashtags = [] // hashtags included in the shortened text
-            data.mode = "single"
-          } else {
-            // Deterministic fallback: split into numbered thread
-            const threadItems = splitIntoThread(
-              (data.post || "") + hashtagText
-            )
-            data.mode = "thread"
-            data.thread = threadItems
-            data.post = ""
-          }
+        return {
+          status: "done",
+          aiResponse: `# 🧵 X / Twitter Thread Generated (${data.thread.length} posts)\n\n${threadSummary}\n\n${hashtagText}`,
+          artifacts: [{ type: "twitter", data }],
+          citations: data.citations
         }
       }
 
-      // Validate thread items too
-      if (data.mode === "thread" && data.thread?.length > 0) {
-        data.thread = data.thread.flatMap(item => {
-          if (item.length > 280) {
-            return splitIntoThread(item)
-          }
-          return [item]
-        })
+      // Single post: check length with hashtags
+      const singleText = data.post || ""
+      const totalLen = singleText.length + hashtagText.length
+
+      if (totalLen > 280) {
+        // Automatically split into a thread
+        const threadItems = splitIntoThread(singleText, 280).map(t => t.replace(/^\(\d+\/\d+\)\s*/, "").trim())
+        data.mode = "thread"
+        data.thread = threadItems
+
+        const threadSummary = threadItems.map((t, i) => `(${i + 1}/${threadItems.length}) ${t}`).join("\n\n")
+
+        return {
+          status: "done",
+          aiResponse: `# 🧵 X / Twitter Thread Generated (${threadItems.length} posts)\n\n${threadSummary}\n\n${hashtagText}`,
+          artifacts: [{ type: "twitter", data }],
+          citations: data.citations
+        }
+      }
+
+      return {
+        status: "done",
+        aiResponse: `# 🐦 X / Twitter Post Generated\n\n${singleText}\n\n${hashtagText}`,
+        artifacts: [{ type: "twitter", data }],
+        citations: data.citations
       }
     }
 
-    // ── Build response ──────────────────────────────────────────────────────
-    let preview = ""
+    // ── LinkedIn ────────────────────────────────────────────────────────────
     if (platform === "linkedin") {
-      preview = `**Hook:** ${data.hook || "N/A"}\n\n${data.body || ""}\n\n**CTA:** ${data.cta || "N/A"}\n\n${data.hashtags?.map(h => h.startsWith("#") ? h : `#${h}`).join(" ") || ""}`
-    } else {
-      if (data.mode === "thread") {
-        preview = `**Thread (${data.thread?.length || 0} posts):**\n\n${data.thread?.map(t => `> ${t}`).join("\n\n") || ""}`
-      } else {
-        preview = data.post || ""
-        if (data.hashtags?.length) {
-          preview += "\n\n" + data.hashtags.map(h => h.startsWith("#") ? h : `#${h}`).join(" ")
-        }
+      const hashtagText = data.hashtags?.length
+        ? "\n\n" + data.hashtags.map(h => h.startsWith("#") ? h : `#${h}`).join(" ")
+        : ""
+
+      const ctaText = data.cta ? `\n\n👉 **${data.cta}**` : ""
+
+      return {
+        status: "done",
+        aiResponse: `# 💼 LinkedIn Post Generated\n\n### ${data.hook || ""}\n\n${data.body || ""}${ctaText}${hashtagText}`,
+        artifacts: [{ type: "linkedin", data }],
+        citations: data.citations
       }
     }
 
     return {
-      status: "done",
-      aiResponse: `# ${platform === "linkedin" ? "LinkedIn" : "X/Twitter"} Post Generated\n\n${preview}`,
-      artifacts: [{ type: platform, data }],
-      citations: data.citations
+      status: "failed",
+      error: `Unknown platform: ${platform}`
     }
 
   } catch (error) {

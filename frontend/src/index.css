@@ -1,1 +1,76 @@
 @import "tailwindcss";
+
+:root, [data-theme="dark"] {
+  --bg-primary: #12141a;
+  --bg-secondary: #181b24;
+  --bg-tertiary: #202430;
+  --bg-hover: #262b3a;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --text-primary: #dce0e8;
+  --text-secondary: #9aa2b2;
+  --text-muted: #677084;
+  --accent: #5c7499;
+  --accent-hover: #6d88b0;
+  --accent-subtle: rgba(92, 116, 153, 0.15);
+  --accent-text: #b8c8df;
+  --card-bg: #161822;
+  --input-bg: #141720;
+  --modal-bg: #181b24;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f4f6f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eaeef4;
+  --bg-hover: #e0e5ed;
+  --border-color: rgba(0, 0, 0, 0.09);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --text-primary: #1e2430;
+  --text-secondary: #4d576a;
+  --text-muted: #8590a4;
+  --accent: #49638b;
+  --accent-hover: #3d5477;
+  --accent-subtle: rgba(73, 99, 139, 0.12);
+  --accent-text: #2f4565;
+  --card-bg: #ffffff;
+  --input-bg: #edf1f7;
+  --modal-bg: #ffffff;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Boxy by default, curved on hover transition utility */
+.boxy-curve {
+  border-radius: 4px;
+  transition: border-radius 0.2s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.boxy-curve:hover {
+  border-radius: 12px;
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

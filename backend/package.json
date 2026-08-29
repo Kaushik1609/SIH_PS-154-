@@ -1,15 +1,22 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "CortexAI Backend Microservices",
   "license": "ISC",
   "author": "",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:gateway": "npm --prefix gateway run dev",
+    "dev:auth": "npm --prefix services/auth run dev",
+    "dev:chat": "npm --prefix services/chat run dev",
+    "dev:agent": "npm --prefix services/agent run dev",
+    "dev": "concurrently -n \"gateway,auth,chat,agent\" -c \"cyan,yellow,green,magenta\" \"npm --prefix gateway run dev\" \"npm --prefix services/auth run dev\" \"npm --prefix services/chat run dev\" \"npm --prefix services/agent run dev\"",
+    "start": "concurrently -n \"gateway,auth,chat,agent\" -c \"cyan,yellow,green,magenta\" \"npm --prefix gateway start\" \"npm --prefix services/auth start\" \"npm --prefix services/chat start\" \"npm --prefix services/agent start\""
   },
   "dependencies": {
+    "concurrently": "^9.1.2",
     "ioredis": "^5.11.1"
   }
 }
+
