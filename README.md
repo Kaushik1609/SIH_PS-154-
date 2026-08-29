@@ -198,6 +198,88 @@ graph LR
 
 ---
 
+## 🔍 RAG (Retrieval-Augmented Generation) Architecture & Pipeline
+
+CortexAI implements a **deterministic, citation-grounded RAG pipeline** tailored for mission-critical disaster management, guaranteeing zero-hallucination outputs and end-to-end provenance.
+
+```mermaid
+flowchart TD
+    subgraph INGESTION["1. Multi-Modal Ingestion & Normalization"]
+        A1[PDF Files] -->|pdf-parse| B[Raw Text Buffer]
+        A2[Word Docs .docx] -->|mammoth| B
+        A3[Plain Text / HTML] -->|Sanitization / RegEx| B
+        A4[Scanned Images / Infographics] -->|Multimodal Gemini Vision OCR| B
+        A5[Direct User Prompt] --> B
+    end
+
+    subgraph CHUNKING["2. Semantic Chunking & Anchor Tagging"]
+        B --> C[RecursiveCharacterTextSplitter<br/>chunkSize: 1000, chunkOverlap: 200]
+        C --> D[Chunk Metadata Enrichment<br/>• chunkId: src-timestamp-chunk-N<br/>• paragraphIndex & language<br/>• confidence score & timestamp]
+    end
+
+    subgraph RETRIEVAL["3. Adaptive Retrieval Routing"]
+        D --> E{Document Size Check}
+        E -->|≤ 25 Chunks<br/>Small Document| F[Full Evidence Pass<br/>Zero Information Loss]
+        E -->|> 25 Chunks<br/>Large Document| G[Vector DB Indexing<br/>Qdrant / Memory Store]
+        G --> H[Semantic Similarity Search<br/>Top-K Relevance Retrieval]
+    end
+
+    subgraph GROUNDING["4. Shared Evidence & Citations Synthesis"]
+        F --> I[evidenceContext Assembly]
+        H --> I
+        I --> J[LangGraph State Context<br/>evidenceContext + sourceChunks]
+    end
+
+    subgraph GENERATION["5. Grounded Multi-Agent Generation"]
+        J --> K1[📋 Document Agent]
+        J --> K2[📽️ Presentation Agent]
+        J --> K3[📱 Social Agent]
+        K1 -->|Strict Evidence Prompting| L[Outputs + Explicit chunkId Citations]
+        K2 -->|Strict Evidence Prompting| L
+        K3 -->|Strict Evidence Prompting| L
+    end
+
+    subgraph VALIDATION["6. Guardrail & Citation Validation"]
+        L --> M[✅ Validation Node<br/>• Grounding Check<br/>• Citation Verification<br/>• PII & Safety Guardrails<br/>• Schema Conformance]
+        M --> N[🚀 Final Grounded Multi-Format Artifacts]
+    end
+
+    style INGESTION fill:#0f172a,stroke:#38bdf8,color:#f8fafc
+    style CHUNKING fill:#1e1b4b,stroke:#818cf8,color:#f8fafc
+    style RETRIEVAL fill:#14532d,stroke:#4ade80,color:#f8fafc
+    style GROUNDING fill:#312e81,stroke:#a78bfa,color:#f8fafc
+    style GENERATION fill:#3b0764,stroke:#e879f9,color:#f8fafc
+    style VALIDATION fill:#1c1917,stroke:#f59e0b,color:#f8fafc
+```
+
+### 🛠️ Detailed RAG Pipeline Stages
+
+1. **Multi-Modal Document Extraction & OCR**:
+   - **PDF**: Streamlined extraction via `pdf-parse`.
+   - **DOCX**: XML structure parsed with `mammoth`.
+   - **Images & Scans**: Multimodal vision analysis with Gemini to perform OCR on disaster bulletins, emergency maps, and damage photos.
+   - **HTML/TXT**: Tag sanitization and whitespace normalization.
+
+2. **Chunking & Anchor Generation**:
+   - Chunks text into **1000-character segments with 200-character overlaps** using `RecursiveCharacterTextSplitter` to preserve contextual boundaries.
+   - Every chunk is anchored with a deterministic identifier (`chunkId`), extraction confidence score (`confidence`), and source reference (`sourceId`).
+
+3. **Adaptive Retrieval Strategy**:
+   - **Small Documents ($\le 25$ chunks)**: All chunks are included in the evidence context. For disaster response, small situation briefs must never lose critical details due to aggressive vector pruning.
+   - **Large Reports ($> 25$ chunks)**: Chunks are converted to dense vector embeddings and indexed in **Qdrant Vector DB** / in-memory vector store. A semantic similarity search queries top-$k$ relevant chunks matched against the user's objective.
+
+4. **Evidence Grounding & Anti-Hallucination Guardrails**:
+   - The compiled `evidenceContext` acts as the single source of truth passed into the LangGraph state.
+   - All sub-agents are strictly instructed:
+     * *"Base every factual claim ONLY on the evidence provided."*
+     * *"If information is not in the evidence, do not invent it."*
+
+5. **Deterministic Citation Tracing & Post-Validation**:
+   - Each agent attaches an array of referenced `chunkId` anchors to its JSON output.
+   - The validation layer verifies that all claims can be traced back to original document chunks before delivering results to the user.
+
+---
+
 ## 📂 Project Structure
 
 ```

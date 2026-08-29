@@ -129,7 +129,7 @@ CRITICAL RULES:
 - Available chunkIds: ${state.sourceChunks?.map(c => c.chunkId).join(", ") || "none"}
 - Hashtags: maximum 5 relevant hashtags.
 - STRICTLY follow the LENGTH RULES above. If the user asked for detailed/long content, you MUST write substantially more.
-${platform === "linkedin" ? `- For standard/long detail, the "body" field MUST contain a detailed, multi-paragraph post of AT LEAST 150 words. Cover the situation, impact, key facts, and recommended actions. DO NOT write a short 2-3 sentence body.` : ""}`
+${platform === "linkedin" ? `- For standard/long detail, the "body" field MUST contain a detailed, multi-paragraph post of AT LEAST 150 words. Cover the situation, impact, key facts, and recommended actions. DO NOT write a short 2-3 sentence body.` : ""}
 
 Return ONLY valid JSON matching this schema:
 ${JSON.stringify(schema, null, 2)}
