@@ -22,26 +22,31 @@ function MessageBubble({ role, content, images, results }) {
   const hasResults = results && Object.keys(results).length > 0
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} my-2`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} my-1.5`}>
       <div
-        className={`w-fit max-w-[95vw] md:max-w-[85%] px-4 py-3 rounded-2xl break-words leading-relaxed ${
+        className={`w-fit max-w-[90vw] md:max-w-[78%] px-3 py-2 rounded-sm boxy-curve break-words leading-relaxed border transition-all text-xs ${
           isUser
-            ? "bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-sm"
-            : "bg-[#141721] border border-white/[0.06] text-slate-200 rounded-tl-sm shadow-lg"
+            ? "text-white"
+            : ""
         }`}
+        style={{
+          backgroundColor: isUser ? 'var(--accent)' : 'var(--bg-secondary)',
+          borderColor: isUser ? 'var(--accent)' : 'var(--border-color)',
+          color: isUser ? '#ffffff' : 'var(--text-primary)'
+        }}
       >
         {/* Render Multi-output Results Grid if present */}
         {hasResults ? (
           <div>
             {content && content !== "Generation complete." && (
-              <p className="text-xs text-slate-400 mb-3">{content}</p>
+              <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>{content}</p>
             )}
             <ResultsGrid results={results} />
           </div>
         ) : (
           <>
             {images && images.length > 0 && (
-              <div className="flex flex-wrap gap-3 mb-3">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {images.map((img, i) => (
                   <img
                     key={i}
@@ -50,7 +55,8 @@ function MessageBubble({ role, content, images, results }) {
                     onClick={() => setLightBox(img)}
                     loading="lazy"
                     onError={(e) => e.currentTarget.remove()}
-                    className="w-40 h-28 rounded-xl object-cover border border-white/10 cursor-zoom-in hover:opacity-90 transition"
+                    className="w-32 h-20 rounded-sm boxy-curve object-cover border cursor-zoom-in hover:opacity-90 transition"
+                    style={{ borderColor: 'var(--border-color)' }}
                   />
                 ))}
               </div>
@@ -59,39 +65,49 @@ function MessageBubble({ role, content, images, results }) {
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
-                h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-lg font-semibold mt-3 mb-2">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-base font-semibold mt-2 mb-1">{children}</h3>,
-                p: ({ children }) => <p className="mb-2 whitespace-pre-wrap break-words text-sm">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc pl-5 space-y-1 my-2 text-sm">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 my-2 text-sm">{children}</ol>,
+                h1: ({ children }) => <h1 className="text-sm font-bold mt-2 mb-1">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-xs font-semibold mt-2 mb-1">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-xs font-semibold mt-1.5 mb-0.5">{children}</h3>,
+                p: ({ children }) => <p className="mb-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5 my-1 text-xs">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-4 space-y-0.5 my-1 text-xs">{children}</ol>,
                 table: ({ children }) => (
-                  <div className="overflow-x-auto my-3">
-                    <table className="min-w-full border border-white/10 text-xs">{children}</table>
+                  <div className="overflow-x-auto my-2">
+                    <table className="min-w-full border text-[11px]" style={{ borderColor: 'var(--border-color)' }}>{children}</table>
                   </div>
                 ),
                 th: ({ children }) => (
-                  <th className="border border-white/10 bg-white/5 px-3 py-1.5 text-left font-semibold">{children}</th>
+                  <th className="border px-2 py-1 text-left font-semibold" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>{children}</th>
                 ),
-                td: ({ children }) => <td className="border border-white/10 px-3 py-1.5">{children}</td>,
+                td: ({ children }) => <td className="border px-2 py-1" style={{ borderColor: 'var(--border-color)' }}>{children}</td>,
                 a: ({ href, children }) => (
-                  <a href={href} target="_blank" rel="noreferrer" className="text-indigo-400 underline inline-flex items-center gap-1">
+                  <a href={href} target="_blank" rel="noreferrer" className="underline inline-flex items-center gap-0.5" style={{ color: 'var(--accent-text)' }}>
                     {children}
-                    <ExternalLink size={12} />
+                    <ExternalLink size={10} />
                   </a>
                 ),
                 code: ({ className, children }) => {
-                  const value = String(children).trim()
+                  const val = String(children).trim()
                   if (!className) {
-                    return <code className="px-1.5 py-0.5 rounded bg-white/10 text-indigo-200 text-xs">{value}</code>
+                    return (
+                      <code
+                        className="px-1 py-0.2 rounded-xs text-[11px]"
+                        style={{
+                          backgroundColor: 'var(--bg-tertiary)',
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        {val}
+                      </code>
+                    )
                   }
                   const language = className.replace("language-", "")
                   return (
-                    <div className="my-3 overflow-hidden rounded-xl border border-white/10 bg-[#111318]">
-                      <div className="flex items-center justify-between bg-[#1b1d24] border-b border-white/10 px-3 py-1.5">
-                        <span className="uppercase text-[11px] text-slate-400">{language}</span>
-                        <button className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white" onClick={() => copyCode(value)}>
-                          {copiedCode === value ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                    <div className="my-2 overflow-hidden rounded-sm boxy-curve border" style={{ borderColor: 'var(--border-color)' }}>
+                      <div className="flex items-center justify-between px-2.5 py-1 border-b text-[10px]" style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>
+                        <span className="uppercase font-mono">{language}</span>
+                        <button className="flex items-center gap-1 cursor-pointer hover:opacity-80" onClick={() => copyCode(val)}>
+                          {copiedCode === val ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
                         </button>
                       </div>
                       <SyntaxHighlighter
@@ -100,12 +116,12 @@ function MessageBubble({ role, content, images, results }) {
                         wrapLongLines
                         customStyle={{
                           margin: 0,
-                          padding: "12px",
-                          background: "#0d1117",
-                          fontSize: "12px"
+                          padding: "8px 12px",
+                          background: "var(--bg-primary)",
+                          fontSize: "11px"
                         }}
                       >
-                        {value}
+                        {val}
                       </SyntaxHighlighter>
                     </div>
                   )
@@ -119,11 +135,11 @@ function MessageBubble({ role, content, images, results }) {
       </div>
 
       {lightBox && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setLightBox(null)}>
-          <button className="absolute top-5 right-5 text-white/80 hover:text-white bg-white/10 rounded-full p-2" onClick={() => setLightBox(null)}>
-            <X size={20} />
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setLightBox(null)}>
+          <button className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full p-1.5 cursor-pointer" onClick={() => setLightBox(null)}>
+            <X size={16} />
           </button>
-          <img src={lightBox} alt="lightbox" className="max-w-[90vw] max-h-[85vh] rounded-2xl border border-white/10 shadow-2xl object-contain" />
+          <img src={lightBox} alt="lightbox" className="max-w-[85vw] max-h-[80vh] rounded-sm boxy-curve border shadow-xl object-contain" style={{ borderColor: 'var(--border-color)' }} />
         </div>
       )}
     </div>
