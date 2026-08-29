@@ -13,12 +13,12 @@ import { invokeLLMWithRetry } from "../utils/llmRetry.js"
 
 const SOCIAL_SCHEMAS = {
   linkedin: {
-    hook: "",
-    body: "",
-    tone: "",
-    cta: "",
-    hashtags: [],
-    citations: []
+    hook: "(attention-grabbing opening line, 1-2 sentences)",
+    body: "(main content, MUST be 150-220 words minimum for standard detail, 250-350 words for long detail)",
+    tone: "(the tone used: formal, urgent, conversational, etc.)",
+    cta: "(call to action, 1-2 sentences)",
+    hashtags: ["(max 5 relevant hashtags)"],
+    citations: ["(chunkIds used)"]
   },
   twitter: {
     mode: "single",   // "single" | "thread"
@@ -68,6 +68,16 @@ function splitIntoThread(text, maxLen = 280) {
 export const socialAgent = async (state, platform) => {
   try {
     await checkAgentLimit(state.userId, "social")
+
+    // ── Evidence guard: fail early if no evidence is available ──────────────
+    if (!state.evidenceContext || state.evidenceContext.trim().length < 50) {
+      console.error(`[Social] No evidence context available (${state.evidenceContext?.length || 0} chars). Cannot generate grounded post.`)
+      return {
+        status: "failed",
+        error: "No source evidence available. Document ingestion may have failed — please re-upload your document."
+      }
+    }
+
     const llm = await getModel("social")
 
     const schema = SOCIAL_SCHEMAS[platform]
@@ -82,14 +92,14 @@ export const socialAgent = async (state, platform) => {
 
     const lengthGuidance = platform === "linkedin"
       ? detail === "brief"
-        ? "LinkedIn post body should be 80-120 words. Keep it punchy and direct."
+        ? "LinkedIn post body should be 80-120 words. Keep it punchy and direct. Hook: 1 sentence. CTA: 1 sentence."
         : detail === "long"
-        ? "LinkedIn post body should be 300-450 words. Write a comprehensive, detailed post with multiple paragraphs, analysis, context, and a strong call-to-action. This should be a substantial, in-depth post."
-        : "LinkedIn post body should be 150-220 words."
+        ? "LinkedIn post body MUST be at least 250 words and ideally 300-450 words. Write a comprehensive, detailed multi-paragraph post with deep analysis, context, key statistics, and a strong call-to-action."
+        : "LinkedIn post body MUST be at least 150 words and ideally 150-220 words. Cover the situation, impact, key facts, and recommended actions. Hook: 1-2 compelling sentences. CTA: 1-2 actionable sentences. Do NOT write a body shorter than 120 words."
       : detail === "brief"
-        ? "Twitter: Write a single tweet under 280 characters. Do NOT use thread mode."
+        ? "Twitter: Write a single tweet under 280 characters (including hashtags). Do NOT use thread mode."
         : detail === "long"
-        ? "Twitter: Write a detailed thread with 4-6 tweets. Set mode to \"thread\". Each tweet should be a complete thought with substantive content."
+        ? "Twitter: Write a detailed thread with 4-6 tweets. Set mode to \"thread\". Each tweet should be a complete thought with substantive content under 280 characters."
         : "Twitter post MUST be under 280 characters total (including hashtags). If it cannot fit, set mode to \"thread\" and split into 2-3 thread items, each under 280 characters."
 
     const conversationContext = state.conversationHistory?.length
@@ -105,7 +115,7 @@ LANGUAGE: ${state.language || "English"}
 DETAIL LEVEL: ${state.detail || "standard"}
 OBJECTIVE: ${state.objective || "Create an engaging social media post"}
 
-LENGTH RULES: ${lengthGuidance}
+LENGTH RULES (CRITICAL — FOLLOW EXACTLY): ${lengthGuidance}
 ${conversationContext}
 EVIDENCE (use ONLY this as your source of truth):
 ===
@@ -119,6 +129,7 @@ CRITICAL RULES:
 - Available chunkIds: ${state.sourceChunks?.map(c => c.chunkId).join(", ") || "none"}
 - Hashtags: maximum 5 relevant hashtags.
 - STRICTLY follow the LENGTH RULES above. If the user asked for detailed/long content, you MUST write substantially more.
+${platform === "linkedin" ? `- For standard/long detail, the "body" field MUST contain a detailed, multi-paragraph post of AT LEAST 150 words. Cover the situation, impact, key facts, and recommended actions. DO NOT write a short 2-3 sentence body.` : ""}`
 
 Return ONLY valid JSON matching this schema:
 ${JSON.stringify(schema, null, 2)}
@@ -145,6 +156,38 @@ ${state.prompt || state.objective || `Generate a ${platform} post`}`
     }
 
     if (!data.citations) data.citations = state.sourceChunks?.map(c => c.chunkId) || []
+
+    // ── LinkedIn: enforce minimum body length ───────────────────────────────
+    if (platform === "linkedin") {
+      const bodyWordCount = (data.body || "").split(/\s+/).filter(w => w.length > 0).length
+      console.log(`[Social] LinkedIn body word count: ${bodyWordCount}`)
+
+      if (bodyWordCount < 80) {
+        console.log(`[Social] LinkedIn body too short (${bodyWordCount} words), re-prompting for expansion...`)
+        const expandPrompt = `The following LinkedIn post body is only ${bodyWordCount} words, which is far too short. Expand it to be at least 150 words while maintaining the same tone, facts, and structure. Add more detail about the situation, impacts, key statistics, and actionable recommendations. Use ONLY the evidence provided earlier — do not invent facts.
+
+Current body:
+${data.body}
+
+EVIDENCE:
+${state.evidenceContext}
+
+Return ONLY the expanded body text (plain text, no JSON, no markdown, no explanation). Write at least 150 words.`
+        
+        try {
+          const expandRes = await llm.invoke(expandPrompt)
+          const expandedBody = expandRes.content.trim()
+          const expandedWordCount = expandedBody.split(/\s+/).filter(w => w.length > 0).length
+          console.log(`[Social] Expanded LinkedIn body: ${expandedWordCount} words`)
+          if (expandedWordCount > bodyWordCount) {
+            data.body = expandedBody
+          }
+        } catch (expandErr) {
+          console.log(`[Social] Expansion re-prompt failed:`, expandErr.message)
+          // Keep original body — better than nothing
+        }
+      }
+    }
 
     // ── Twitter: hard-enforce 280-char limit in code ────────────────────────
     if (platform === "twitter") {
@@ -227,3 +270,4 @@ ${state.prompt || state.objective || `Generate a ${platform} post`}`
     }
   }
 }
+

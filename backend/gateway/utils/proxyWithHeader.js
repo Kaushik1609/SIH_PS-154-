@@ -2,6 +2,7 @@ import proxy from "express-http-proxy"
 
 export const proxyWithHeader = (serviceUrl) => {
     return proxy(serviceUrl, {
+        limit: "50mb",
         parseReqBody: false,
         timeout: 120000,
         proxyReqOptDecorator: (proxyReqOpts, srcReq) => {

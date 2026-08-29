@@ -11,7 +11,8 @@ function getGroq() {
         const apiKey = process.env.GROQ_API_KEY || "dummy-key"
         groqInstance = new ChatGroq({
             model: "openai/gpt-oss-120b",
-            temperature: 0.3,
+            temperature: 0.7,
+            maxTokens: 4096,
             apiKey
         })
     }
@@ -24,6 +25,7 @@ function getGemini() {
         geminiInstance = new ChatGoogleGenerativeAI({
             model: "gemini-2.5-flash",
             temperature: 0.7,
+            maxOutputTokens: 4096,
             apiKey
         })
     }
@@ -48,3 +50,4 @@ export const getModel = async (agent) => {
             return getGroq()
     }
 }
+

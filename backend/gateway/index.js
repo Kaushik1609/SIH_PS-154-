@@ -21,7 +21,10 @@ app.use(cors({
 }))
 app.use(morgan("dev"))
 app.use(cookieParser())
-app.use("/api/auth", proxy(authServiceUrl))
+app.use(express.json({ limit: "50mb" }))
+app.use(express.urlencoded({ extended: true, limit: "50mb" }))
+
+app.use("/api/auth", proxy(authServiceUrl, { limit: "50mb" }))
 app.use("/api/chat", protect, proxyWithHeader(chatServiceUrl))
 app.use("/api/agent", protect, proxyWithHeader(agentServiceUrl))
 

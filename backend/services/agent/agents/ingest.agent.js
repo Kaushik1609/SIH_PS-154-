@@ -25,14 +25,17 @@ export const ingestAgent = async (state) => {
     // ── Branch on input type ───────────────────────────────────────────────
     if (state.file) {
       const mimetype = state.file.mimetype || ""
+      console.log(`[Ingest] Processing file: ${state.file.originalname || state.file.path}, mimetype: ${mimetype}`)
 
       if (mimetype === "application/pdf") {
         // PDF extraction via pdf-parse
         const { PDFParse } = await import("pdf-parse")
         const buffer = fs.readFileSync(state.file.path)
+        console.log(`[Ingest] PDF buffer size: ${buffer.length} bytes`)
         const pdf = new PDFParse({ data: buffer })
         const result = await pdf.getText()
         extractedText = result.text
+        console.log(`[Ingest] PDF extracted text length: ${extractedText.length} chars`)
       } else if (
         mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
         mimetype === "application/msword"
@@ -41,15 +44,18 @@ export const ingestAgent = async (state) => {
         const buffer = fs.readFileSync(state.file.path)
         const result = await mammoth.extractRawText({ buffer })
         extractedText = result.value
+        console.log(`[Ingest] DOCX extracted text length: ${extractedText.length} chars`)
 
       } else if (mimetype === "text/plain") {
         // Plain text
         extractedText = fs.readFileSync(state.file.path, "utf-8")
+        console.log(`[Ingest] TXT extracted text length: ${extractedText.length} chars`)
 
       } else if (mimetype === "text/html") {
         // HTML — strip tags, keep text
         const raw = fs.readFileSync(state.file.path, "utf-8")
         extractedText = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+        console.log(`[Ingest] HTML extracted text length: ${extractedText.length} chars`)
 
       } else if (mimetype.startsWith("image/")) {
         // Image — multimodal LLM text extraction (reuse Gemini)
@@ -80,6 +86,7 @@ export const ingestAgent = async (state) => {
         const response = await llm.invoke(messages)
         extractedText = response.content
         confidence = 0.85 // OCR/vision extraction has lower confidence
+        console.log(`[Ingest] Image extracted text length: ${extractedText.length} chars`)
 
       } else if (
         mimetype.startsWith("audio/") ||
@@ -107,11 +114,25 @@ export const ingestAgent = async (state) => {
     } else if (state.prompt) {
       // Free-form pasted text — normalize directly
       extractedText = state.prompt
+      console.log(`[Ingest] Using prompt text, length: ${extractedText.length} chars`)
 
     } else {
       return {
         ...state,
         aiResponse: "No source document or text provided. Please upload a file or paste text.",
+        evidenceContext: "",
+        sourceChunks: [],
+        results: {}
+      }
+    }
+
+    // ── Guard: fail early if extraction produced nothing ────────────────────
+    const cleanedText = extractedText.replace(/\s+/g, " ").trim()
+    if (!cleanedText || cleanedText.length < 20) {
+      console.error(`[Ingest] EMPTY OR NEAR-EMPTY extraction (${cleanedText.length} chars). Aborting.`)
+      return {
+        ...state,
+        aiResponse: "Failed to extract meaningful text from the uploaded document. The file may be empty, corrupted, or contain only images without OCR-readable text. Please try a different file.",
         evidenceContext: "",
         sourceChunks: [],
         results: {}
@@ -126,6 +147,7 @@ export const ingestAgent = async (state) => {
 
     const docs = await splitter.createDocuments([extractedText])
     const collectionName = `job-${Date.now()}`
+    console.log(`[Ingest] Created ${docs.length} chunks from ${extractedText.length} chars of text`)
 
     // Attach anchors to each chunk
     const sourceChunks = docs.map((doc, index) => ({
@@ -139,29 +161,41 @@ export const ingestAgent = async (state) => {
       content: doc.pageContent
     }))
 
-    // Index into Qdrant
-    const store = await vectorStore(docs, collectionName)
+    // ── Decide retrieval strategy based on document size ────────────────────
+    // For small documents (≤ 25 chunks), use ALL chunks — don't lose content
+    // For large documents, use vector similarity search with high k
+    let relevantChunks
 
-    // Retrieve relevant chunks for the objective/prompt
-    const query = state.objective || state.prompt || "summarize the document"
-    const relevantDocs = await store.similaritySearch(query, 8)
+    if (docs.length <= 25) {
+      // Small document — use everything, no information loss
+      console.log(`[Ingest] Small document (${docs.length} chunks), using ALL chunks as evidence`)
+      relevantChunks = sourceChunks
+    } else {
+      // Large document — index and retrieve top-k
+      const store = await vectorStore(docs, collectionName)
+      const query = state.objective || state.prompt || "summarize the document"
+      const retrieveK = Math.min(docs.length, 20) // retrieve up to 20 chunks
+      console.log(`[Ingest] Large document (${docs.length} chunks), retrieving top ${retrieveK} via similarity search`)
+      const relevantDocs = await store.similaritySearch(query, retrieveK)
 
-    // Map retrieved docs back to their source chunks with anchors
-    const relevantChunks = relevantDocs.map((doc) => {
-      const matched = sourceChunks.find(sc => sc.content === doc.pageContent)
-      return matched || {
-        chunkId: `${sourceId}-retrieved`,
-        sourceId,
-        paragraphIndex: -1,
-        uploadingUserId: state.userId,
-        extractionTimestamp: new Date().toISOString(),
-        language: state.language || "auto",
-        confidence,
-        content: doc.pageContent
-      }
-    })
+      // Map retrieved docs back to their source chunks with anchors
+      relevantChunks = relevantDocs.map((doc) => {
+        const matched = sourceChunks.find(sc => sc.content === doc.pageContent)
+        return matched || {
+          chunkId: `${sourceId}-retrieved`,
+          sourceId,
+          paragraphIndex: -1,
+          uploadingUserId: state.userId,
+          extractionTimestamp: new Date().toISOString(),
+          language: state.language || "auto",
+          confidence,
+          content: doc.pageContent
+        }
+      })
+    }
 
     const evidenceContext = relevantChunks.map(c => c.content).join("\n\n")
+    console.log(`[Ingest] Final evidenceContext: ${evidenceContext.length} chars from ${relevantChunks.length} chunks`)
 
     return {
       ...state,
@@ -170,10 +204,10 @@ export const ingestAgent = async (state) => {
     }
 
   } catch (error) {
-    console.log("Ingest agent error:", error)
+    console.error("[Ingest] Agent error:", error)
     return {
       ...state,
-      aiResponse: error?.data?.message || "Failed to ingest and process document.",
+      aiResponse: error?.message || error?.data?.message || "Failed to ingest and process document.",
       evidenceContext: "",
       sourceChunks: [],
       results: {}

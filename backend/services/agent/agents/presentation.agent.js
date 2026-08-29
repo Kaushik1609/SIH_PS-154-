@@ -42,6 +42,15 @@ export const presentationAgent = async (state, docType) => {
     await checkAgentLimit(state.userId, "presentation")
     const llm = await getModel("presentation")
 
+    // ── Evidence guard: fail early if no evidence is available ──────────────
+    if (!state.evidenceContext || state.evidenceContext.trim().length < 50) {
+      console.error(`[Presentation] No evidence context available (${state.evidenceContext?.length || 0} chars). Cannot generate grounded presentation.`)
+      return {
+        status: "failed",
+        error: "No source evidence available. Document ingestion may have failed — please re-upload your document."
+      }
+    }
+
     const detail = (state.detail || "standard").toLowerCase()
     const conversationContext = state.conversationHistory?.length
       ? `\nCONVERSATION HISTORY (previous exchanges in this session — use for context and continuity):\n${state.conversationHistory.map(m => `[${m.role}]: ${m.content}`).join("\n")}\n`

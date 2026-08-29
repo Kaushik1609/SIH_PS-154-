@@ -75,6 +75,15 @@ export const documentAgent = async (state, docType) => {
     await checkAgentLimit(state.userId, "document")
     const llm = await getModel("document")
 
+    // ── Evidence guard: fail early if no evidence is available ──────────────
+    if (!state.evidenceContext || state.evidenceContext.trim().length < 50) {
+      console.error(`[Document] No evidence context available (${state.evidenceContext?.length || 0} chars). Cannot generate grounded document.`)
+      return {
+        status: "failed",
+        error: "No source evidence available. Document ingestion may have failed — please re-upload your document."
+      }
+    }
+
     // Normalize docType to match SCHEMAS keys
     const normalizedKey = (docType === "executivesummary" || docType === "executiveSummary")
       ? "executiveSummary"
