@@ -23,7 +23,7 @@ function getGemini() {
     if (!geminiInstance) {
         const apiKey = process.env.GOOGLE_API_KEY || "dummy-key"
         geminiInstance = new ChatGoogleGenerativeAI({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.6-flash",
             temperature: 0.7,
             maxOutputTokens: 4096,
             apiKey
@@ -38,16 +38,14 @@ export const getModel = async (agent) => {
 
     switch (agent) {
         case "ingest":
-            if (hasGoogle) return getGemini()
-            return getGroq()
         case "document":
         case "presentation":
         case "social":
         case "validate":
         default:
-            if (hasGroq) return getGroq()
             if (hasGoogle) return getGemini()
-            return getGroq()
+            if (hasGroq) return getGroq()
+            return getGemini()
     }
 }
 
